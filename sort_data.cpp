@@ -6,10 +6,10 @@ int main()
 {
     string value;
     int i = 0;
-    ifstream reader;
-    fstream Outfile;
-    reader.open("infile.txt");
-    Outfile.open("GMRTest1.txt");
+    //ifstream reader;
+    //fstream Outfile;
+    //reader.open("infile.txt");
+    //Outfile.open("GMRTest1.txt");
 
     while(!infile.eof()) {
         cin >> value;
@@ -19,9 +19,9 @@ int main()
         }
 
         while(value[i] != "\n") {
-            Outfile >> value[i]; 
+            cout >> value[i]; 
         }
-        Outfile >> "\n";
+        cout >> "\n";
     }
 
     

@@ -1,78 +1,52 @@
-//=========================================================================================
+
+/*========================================================================================================
 // Poets GMR sensor to current, I Arduino file
-// Author: Ayotunde Odejayi
-// Date: 9/13/2015
-//=========================================================================================
 
-int GMR_sensor = A0;    // select the input pin for the potentiometer
-float GMR_val = 0.0;  // variable to store the value coming from the sensor
-float I = 0.0;
+// Description: This code serves to read in Analog data from a GMR sensor and produce an output current
+                which should correspond to the magnitude of the magnetic field detected by the GMR sensor.
+                
 
-// Equation params
-float V_out;
-float x1, x2 = 0.0;
-int a = 0.0015, b = 0.0458, c = 0.0404;
+// Date: 9/13/2016
+//========================================================================================================
+*/
+
+
+int GMR_sensor0 = A0;    // input pin for the GMR sensor
+int GMR_sensor1 = A1;    // input pin for the GMR sensor
+float running_sum = 0.0, current = 0;
+int no_data_points;
+unsigned long time, ref_time, curr_ref_time;
+int count = 0;
+float atmospheric_constant = 0.0;
 
 void setup() {
-  Serial.begin(9600);
-  pinMode(GMR_sensor, INPUT);
+  Serial.begin(19200);
+  ref_time =  millis();
 }
 
 void loop() {
-  // read sensor value
-  GMR_val = analogRead(GMR_sensor);
-  
-  //Serial.print("Analog In: "); Serial.println(GMR_val);
-  
-  process_GMR_data();
-  
-  Serial.println(""); Serial.println("=========================================");
+  curr_ref_time = millis();
+  no_data_points = 0.0;
+  running_sum = 0.0;
 
-  delay(2000);
-}
-
-
-void process_GMR_data() {
-  // Compute actual V_out from GMR_val
-  V_out = myMap(GMR_val, 0, 300, 0, 1.5);
-
-  Serial.print("GMR Sensor value(V) : ");
-  Serial.println(V_out);
-  
-  // Compute I from V_out
-  I = (-7.1503 * V_out * V_out) +   21.1008 * V_out - 0.7976 * V_out;
-  
-  
-  // Print out current value
-  Serial.print("I(A): ");
-  if (I > 0) {
-    Serial.println(I);
-  } else {
-    Serial.println("0");
+  while (millis() - curr_ref_time < 1000) {
+     running_sum += analogRead(GMR_sensor0) - analogRead(GMR_sensor1);
+     no_data_points++;
   }
-  
+
+ current = running_sum/no_data_points;
+ current = 0.397*current - 0.3689 + atmospheric_constant;
+ Serial.print((millis()-ref_time)/1000);
+ Serial.print("      ");
+ Serial.println(current);
+
+  //stall_function();  */
 }
 
-
-float myMap(float x, float in_min, float in_max, float out_min, float out_max) {
-  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+void stall_function() 
+{
+  int i = 0;
+  while (i == 0) {
+ 
+  }
 }
-
-
-/*float quadraticSolver () {
- 	float a,b,c,d,root1,root2;
-	d=b*b-4*a*c;
-
-	if(d==0) {
-	  root1=(-b)/(2*a);
-	  root2=root1;
-          return root1;
-  	}
-	else if(d>0)
-	{
-	  root1=-(b+sqrt(d))/(2*a);
-	  root2=-(b-sqrt(d))/(2*a);
-	  cout<<"Roots are real & distinct";
-	}
-}*/
-
