@@ -3,7 +3,7 @@
 
 //Description: This code serves to write out data collected by the Arduino and thrown to the serial monitor. 
 		NB: Arduino Serial monitor must be closed for code to work.
-		Also, ensure the right port is being accessed
+		Also, ensure the right port on your computer is being accessed
 		
 // Date: 10/3/2016
 //========================================================================================================
