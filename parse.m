@@ -116,10 +116,10 @@ parfor sheetIndex = 1:noLoadValues
     mean_d_h(1,sheetIndex) = abs(mean(d_h(sheetIndex,:)));
     mean_l_t(1,sheetIndex) = abs(mean(l_t(sheetIndex,:)));
     mean_l_h(1,sheetIndex) = abs(mean(l_h(sheetIndex,:)));
-    mean_t1_t(1,sheetIndex) = abs(mean(c_t(sheetIndex,:)));
-    mean_t1_h(1,sheetIndex) = abs(mean(c_h(sheetIndex,:)));
-    mean_t2_t(1,sheetIndex) = abs(mean(d_t(sheetIndex,:)));
-    mean_t2_h(1,sheetIndex) = abs(mean(d_h(sheetIndex,:)));
+    mean_t1_t(1,sheetIndex) = abs(mean(t1_t(sheetIndex,:)));
+    mean_t1_h(1,sheetIndex) = abs(mean(t1_h(sheetIndex,:)));
+    mean_t2_t(1,sheetIndex) = abs(mean(t2_t(sheetIndex,:)));
+    mean_t2_h(1,sheetIndex) = abs(mean(t2_h(sheetIndex,:)));
     
 end
 fprintf('parse time: %.1f(s)\n', toc);
