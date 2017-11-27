@@ -1,9 +1,9 @@
 %% Title: Parse.m File
 % Entry point 
-% Description: helps parse our .xlsx data files for faster & efficient data analysis
-% Author: Poets HU
+% Description: helps parse our .xlsx data files obtained from MFS-3A GMW sensors for faster & efficient data analysis
+% Author: Ayotunde Odejayi (Poets HU)
 %%
-function GaNparse(filename)
+function parse(filename)
 
 % 1. Setup
 close all;
@@ -54,36 +54,41 @@ param_Imeas = xlsread(filepath,1,strcat('G',int2str(headerspace+1),':','G',int2s
 newXpoints = linspace(1,2400,24);
 
 % pre-allocate memory for speed + efficiency
-raw_t1_t = zeros(noLoadValues, noDataValues-headerspace);
-raw_t1_h = zeros(noLoadValues, noDataValues-headerspace);
-raw_t2_t = zeros(noLoadValues, noDataValues-headerspace);
-raw_t2_h = zeros(noLoadValues, noDataValues-headerspace);
-spY_t1_t = zeros(noLoadValues, (noDataValues-2)/100);
-spY_t1_h = zeros(noLoadValues, (noDataValues-2)/100);
-spY_t2_t = zeros(noLoadValues, (noDataValues-2)/100);
-spY_t2_h = zeros(noLoadValues, (noDataValues-2)/100);
-sm_t1_t = zeros(noLoadValues, (noDataValues-2)/100);
-sm_t1_h = zeros(noLoadValues, (noDataValues-2)/100);
-sm_t2_t = zeros(noLoadValues, (noDataValues-2)/100);
-sm_t2_h = zeros(noLoadValues, (noDataValues-2)/100);
+raw_T1 = zeros(noLoadValues, noDataValues-headerspace);
+raw_T2 = zeros(noLoadValues, noDataValues-headerspace);
+splineY_T1 = zeros(noLoadValues, (noDataValues-2)/100);
+splineY_T2 = zeros(noLoadValues, (noDataValues-2)/100);
+smoothed_T1 = zeros(noLoadValues, (noDataValues-2)/100);
+smoothed_T2 = zeros(noLoadValues, (noDataValues-2)/100);
+gradient_T1 = zeros(noLoadValues, (noDataValues-2)/100);
+gradient_T2 = zeros(noLoadValues, (noDataValues-2)/100);
+
+Bx1 = zeros(noLoadValues, noDataValues-headerspace);
+By1 = zeros(noLoadValues, noDataValues-headerspace);
+Bz1 = zeros(noLoadValues, noDataValues-headerspace);
+Bx2 = zeros(noLoadValues, noDataValues-headerspace);
+By2 = zeros(noLoadValues, noDataValues-headerspace);
+Bz2 = zeros(noLoadValues, noDataValues-headerspace);
+raw_B1 = zeros(noLoadValues, noDataValues-headerspace);
+raw_B2 = zeros(noLoadValues, noDataValues-headerspace);
+splineY_B1 = zeros(noLoadValues, (noDataValues-2)/100);
+splineY_B2 = zeros(noLoadValues, (noDataValues-2)/100);
+smoothed_B1 = zeros(noLoadValues, (noDataValues-2)/100);
+smoothed_B2 = zeros(noLoadValues, (noDataValues-2)/100);
+
+mean_B1 = zeros(1, noLoadValues);
+mean_B2 = zeros(1, noLoadValues);
+mean_T1 = zeros(1, noLoadValues);
+mean_T2 = zeros(1, noLoadValues);
+
 amb_temp = zeros(noLoadValues, noDataValues-headerspace);
 Vmeas = zeros(noLoadValues, noDataValues-headerspace);
 Imeas = zeros(noLoadValues, noDataValues-headerspace);
-mean_t1_h = zeros(1, noLoadValues);
-mean_t1_h = zeros(1, noLoadValues);
-mean_t2_h = zeros(1, noLoadValues);
-mean_t2_h = zeros(1, noLoadValues);
-sd_t1_t = zeros(1, noLoadValues);
-sd_t2_t = zeros(1, noLoadValues);
-sd_t1_h = zeros(1, noLoadValues);
-sd_t2_h = zeros(1, noLoadValues);
-xshift = 0:((noDataValues-2)/100)-1;
-gt1 = zeros(noLoadValues, (noDataValues-2)/100);
-gt2 = zeros(noLoadValues, (noDataValues-2)/100);
-%H1vec = zeros(noLoadValues);
-%H2vec = zeros(noLoadValues);
-%dT1vec = zeros(noLoadValues);
-%dT2vec = zeros(noLoadValues);
+
+sd_B1 = zeros(1, noLoadValues);
+sd_B2 = zeros(1, noLoadValues);
+sd_T1 = zeros(1, noLoadValues);
+sd_T2 = zeros(1, noLoadValues);
 
 % 2.2 data
 % parallelize operation 
@@ -95,7 +100,7 @@ if ~strncmp(char(java.lang.System.getProperty('java.version')), '', 1)
 else
     % If JVM is disabled, this should suffice. 
     % NB: JVM is preferred b/c it gives you no. of logical cores (usually more than no. of physical cores)
-    % hence, speeds up your computation.
+    % hence, speeds up our computation.
     machineNumCores = feature('numcores'); 
 end
 
@@ -105,124 +110,91 @@ end
 
 tic()
 parfor sheetIndex = 1:noLoadValues
+    % Temperature and magnetic field
     % transistor1
-    raw_t1_t(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('H',int2str(headerspace+1),':','H',int2str(noDataValues)));     
-    raw_t1_h(sheetIndex,:) = abs(xlsread(filepath,sheetIndex+1,strcat('K',int2str(headerspace+1),':','K',int2str(noDataValues))));
-    
+    raw_T1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('H',int2str(headerspace+1),':','H',int2str(noDataValues)));     
+    Bx1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('K',int2str(headerspace+1),':','K',int2str(noDataValues)));
+    By1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('L',int2str(headerspace+1),':','L',int2str(noDataValues)));
+    Bz1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('M',int2str(headerspace+1),':','M',int2str(noDataValues)));
+
     % transistor2
-    raw_t2_t(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('I',int2str(headerspace+1),':','I',int2str(noDataValues)));     
-    raw_t2_h(sheetIndex,:) = abs(xlsread(filepath,sheetIndex+1,strcat('L',int2str(headerspace+1),':','L',int2str(noDataValues))));
+    raw_T2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('I',int2str(headerspace+1),':','I',int2str(noDataValues)));     
+    Bx2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('N',int2str(headerspace+1),':','N',int2str(noDataValues)));
+    By2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('O',int2str(headerspace+1),':','O',int2str(noDataValues)));
+    Bz2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('P',int2str(headerspace+1),':','P',int2str(noDataValues)));    
     
     % ambient temperature
-    amb_temp(sheetIndex,:) = abs(xlsread(filepath,sheetIndex+1,strcat('D',int2str(headerspace+1),':','D',int2str(noDataValues))));
+    %amb_temp(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('D',int2str(headerspace+1),':','D',int2str(noDataValues)));
     
     % experiment recorded voltages and currents
-    Vmeas(sheetIndex,:) = abs(xlsread(filepath,sheetIndex+1,strcat('E',int2str(headerspace+1),':','E',int2str(noDataValues))));     
-    Imeas(sheetIndex,:) = abs(xlsread(filepath,sheetIndex+1,strcat('F',int2str(headerspace+1),':','F',int2str(noDataValues))));     
+    %Vmeas(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('E',int2str(headerspace+1),':','E',int2str(noDataValues)));     
+    %Imeas(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('F',int2str(headerspace+1),':','F',int2str(noDataValues)));     
     
+    
+    % Total magnetic field density (Ametes MFS-3A sensor)
+    raw_B1(sheetIndex,:) = Bx1(sheetIndex,:).^2 + By1(sheetIndex,:).^2 + Bz1(sheetIndex,:).^2
+    raw_B2(sheetIndex,:) = Bx2(sheetIndex,:).^2 + By2(sheetIndex,:).^2 + Bz2(sheetIndex,:).^2
     
     % smoothed values
-    spY_t1_t(sheetIndex,:) = spline(1:2400, raw_t1_t(sheetIndex,:), newXpoints);
-    spY_t1_h(sheetIndex,:) = spline(1:2400, raw_t1_h(sheetIndex,:), newXpoints);
-    spY_t2_t(sheetIndex,:) = spline(1:2400, raw_t2_t(sheetIndex,:), newXpoints);
-    spY_t2_h(sheetIndex,:) = spline(1:2400, raw_t2_h(sheetIndex,:), newXpoints);
+    splineY_T1(sheetIndex,:) = spline(1:2400, raw_T1(sheetIndex,:), newXpoints);
+    splineY_B1(sheetIndex,:) = spline(1:2400, raw_B1(sheetIndex,:), newXpoints);
+    splineY_T2(sheetIndex,:) = spline(1:2400, raw_T2(sheetIndex,:), newXpoints);
+    splineY_B2(sheetIndex,:) = spline(1:2400, raw_B2(sheetIndex,:), newXpoints);
 
-    sm_t1_t(sheetIndex,:) = smooth(spY_t1_t(sheetIndex,:));
-    sm_t1_h(sheetIndex,:) = smooth(spY_t1_h(sheetIndex,:));    
-    sm_t2_t(sheetIndex,:) = smooth(spY_t2_t(sheetIndex,:));
-    sm_t2_h(sheetIndex,:) = smooth(spY_t2_h(sheetIndex,:));
+    smoothed_T1(sheetIndex,:) = smooth(splineY_T1(sheetIndex,:));
+    smoothed_B1(sheetIndex,:) = smooth(splineY_B1(sheetIndex,:));    
+    smoothed_T2(sheetIndex,:) = smooth(splineY_T2(sheetIndex,:));
+    smoothed_B2(sheetIndex,:) = smooth(splineY_B2(sheetIndex,:));
     
     % temperature gradients
-    gt1(sheetIndex,:) = gradient(sm_t1_t(sheetIndex,:));
-    gt2(sheetIndex,:) = gradient(sm_t2_t(sheetIndex,:));
+    gradient_T1(sheetIndex,:) = gradient(smoothed_T1(sheetIndex,:));
+    gradient_T2(sheetIndex,:) = gradient(smoothed_T2(sheetIndex,:));
     
     % averages
-    mean_t1_t(1,sheetIndex) = abs(mean(raw_t1_t(sheetIndex,:)));
-    mean_t1_h(1,sheetIndex) = abs(mean(raw_t1_h(sheetIndex,:)));
-    mean_t2_t(1,sheetIndex) = abs(mean(raw_t2_t(sheetIndex,:)));
-    mean_t2_h(1,sheetIndex) = abs(mean(raw_t2_h(sheetIndex,:)));
+    mean_T1(1,sheetIndex) = mean(raw_T1(sheetIndex,:));
+    mean_T2(1,sheetIndex) = mean(raw_T2(sheetIndex,:));
+    mean_B1(1,sheetIndex) = mean(raw_B1(sheetIndex,:));
+    mean_B2(1,sheetIndex) = mean(raw_B2(sheetIndex,:));
     
     % standard deviation
-    sd_t1_t(1,sheetIndex) = std(raw_t1_t(sheetIndex,:));
-    sd_t2_t(1,sheetIndex) = std(raw_t2_t(sheetIndex,:));
-    sd_t1_h(1,sheetIndex) = std(raw_t1_h(sheetIndex,:));
-    sd_t2_h(1,sheetIndex) = std(raw_t2_h(sheetIndex,:));
+    sd_T1(1,sheetIndex) = std(raw_T1(sheetIndex,:));
+    sd_T2(1,sheetIndex) = std(raw_T2(sheetIndex,:));
+    sd_B1(1,sheetIndex) = std(raw_B1(sheetIndex,:));
+    sd_B2(1,sheetIndex) = std(raw_B2(sheetIndex,:));
     
 end
+
+% slicing immediate and steady-state values to reduce parfor communication overhead
+    gradient_T1_imm = gradient_T1(:,1);
+    gradient_T2_imm = gradient_T1(:,1);
+    gradient_T1_ss = gradient_T1(:,10);
+    gradient_T2_ss = gradient_T1(:,10);
+    
+    smoothed_B1_imm = smoothed_B1(:,1);
+    smoothed_B2_imm = smoothed_B2(:,1);
+    smoothed_B1_ss = smoothed_B1(:,24);
+    smoothed_B2_ss = smoothed_B2(:,24);
+
+% compute 
 parfor loadIndex = 1:noLoadValues
-   H1vec(loadIndex) = sm_t1_h(loadIndex,1);
-   H2vec(loadIndex) = sm_t2_h(loadIndex,1);
-   dT1vec(loadIndex) = gt1(loadIndex,1);
-   dT2vec(loadIndex) = gt2(loadIndex,1);
+   T1(loadIndex) = gradient_T1_imm(loadIndex);
+   T2(loadIndex) = gradient_T2_imm(loadIndex);
+   T1ss(loadIndex) = gradient_T1_ss(loadIndex);
+   T2ss(loadIndex) = gradient_T2_ss(loadIndex);
+   
+   B1(loadIndex) = smoothed_B1_imm(loadIndex);
+   B2(loadIndex) = smoothed_B2_imm(loadIndex);
+   B1ss(loadIndex) = smoothed_B1_ss(loadIndex);
+   B2ss(loadIndex) = smoothed_B2_ss(loadIndex);
+   
 end
 fprintf('parse time: %.1f(s)\n', toc);
 
 % turn off parpool cluster
-%delete(gcp('nocreate'))
+% delete(gcp('nocreate'))
     
 %% perform various arithmetic & plot operations on parsed data available in workspace 
 disp('Ready...');
 keyboard
 
 end
-
-
-%% 3. Utility plot visualization functions
-function plBoth(y1data,y2data,titleLabel)
-           
-    noDatapoints = evalin('base', 'eval(''noDataValues'')');
-    header = evalin('base', 'eval(''headerspace'')');
-    timePoints = linspace(1,noDatapoints-header,noDatapoints-header);
-    
-    fig = figure;
-    assignin('base','FigHandle',fig);
-    plot(timePoints, y1data, timePoints, y2data)
-    xlabel('H-Field  H');
-
-    if (nargin <= 2)
-        titleLabel = strcat('Temperature Vs. Magnetic Field');
-    end
-    
-    title(titleLabel)
-    
-    grid on
-    ylabel('Temperature  ^{0}F');
-    legend('Data1','Data2')
-end
-
-function plvLoad(ydata,ylabelStr)
-    loadValues = [20,5,2.5,1.66,1.25,1.11,1.25,1.66,2.5,5,20];
-    plot(loadValues, ydata)
-    
-    hold on
-    grid on
-    xlabel('Load L');
-    
-    if (nargin == 1)
-        ylabel(ylabelStr);
-    end
-    
-    legend('Data1','Data2')
-end
-
-function pl2Values()
-
-end
-
-% save plots to the Figs folder
-function sv(titleLabel)
-    if (nargin == 0)
-        titleLabel = evalin('base', 'eval(''filepath'', ''titleLabel'')');
-    end
-    
-    FigH = evalin('base', 'eval(''FigHandle'')');
-    
-    title(titleLabel)
-    set(FigH, 'Position', [100 100 150 150]);
-    saveas(FigH,strcat('Figs/', titleLabel, '.png'));
-    fprintf('successfully saved to Figs folder');
-    close all;
-end
-
-% add other functions to plot against load, etc
-% ofcourse desired plot values can also be done from the command window
