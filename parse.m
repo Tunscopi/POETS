@@ -38,7 +38,7 @@ assignin('base','headerspace',headerspace);
 
 % 2.1 experiment parameters
 param_Vin = xlsread(filepath,1,'B3'); 
-isTrial = strfind(filename, 'trial');
+isTrial = strfind(filepath, 'trial');
 if (param_Vin > 45)
    noLoadValues = 7;
 end
@@ -85,6 +85,8 @@ amb_temp = zeros(noLoadValues, noDataValues-headerspace);
 Vmeas = zeros(noLoadValues, noDataValues-headerspace);
 Imeas = zeros(noLoadValues, noDataValues-headerspace);
 
+overflowImpending = zeros(noLoadValues, 1);
+
 sd_B1 = zeros(1, noLoadValues);
 sd_B2 = zeros(1, noLoadValues);
 sd_T1 = zeros(1, noLoadValues);
@@ -118,10 +120,26 @@ parfor sheetIndex = 1:noLoadValues
     Bz1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('M',int2str(headerspace+1),':','M',int2str(noDataValues)));
 
     % transistor2
-    raw_T2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('I',int2str(headerspace+1),':','I',int2str(noDataValues)));     
+    raw_T2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('I',int2str(headerspace+1),':','I',int2str(noDataValues)));
     Bx2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('N',int2str(headerspace+1),':','N',int2str(noDataValues)));
     By2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('O',int2str(headerspace+1),':','O',int2str(noDataValues)));
     Bz2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('P',int2str(headerspace+1),':','P',int2str(noDataValues)));    
+    
+    % Handle overflow from IR sensor (usually occurs on excursion point i.e L7)
+    if sheetIndex == 7
+        temp_T2 = raw_T2(sheetIndex,:);
+        for valueIndex = 1:noDataValues-2
+            if (temp_T2(valueIndex) > 249.0 && overflowImpending(sheetIndex,:) == 0)
+                overflowImpending(sheetIndex,:) = 1;
+            end
+            if (temp_T2(valueIndex) < 5.0 && overflowImpending(sheetIndex,:) == 1)
+                temp_T2(valueIndex) = temp_T2(valueIndex) + 249.0;
+                overflowImpending(sheetIndex,:) = 0;
+            end
+        end
+        raw_T2(sheetIndex,:) = temp_T2;
+    end
+     
     
     % ambient temperature
     %amb_temp(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('D',int2str(headerspace+1),':','D',int2str(noDataValues)));
@@ -132,8 +150,8 @@ parfor sheetIndex = 1:noLoadValues
     
     
     % Total magnetic field density (Ametes MFS-3A sensor)
-    raw_B1(sheetIndex,:) = Bx1(sheetIndex,:).^2 + By1(sheetIndex,:).^2 + Bz1(sheetIndex,:).^2
-    raw_B2(sheetIndex,:) = Bx2(sheetIndex,:).^2 + By2(sheetIndex,:).^2 + Bz2(sheetIndex,:).^2
+    raw_B1(sheetIndex,:) = Bx1(sheetIndex,:).^2 + By1(sheetIndex,:).^2 + Bz1(sheetIndex,:).^2;
+    raw_B2(sheetIndex,:) = Bx2(sheetIndex,:).^2 + By2(sheetIndex,:).^2 + Bz2(sheetIndex,:).^2;
     
     % smoothed values
     splineY_T1(sheetIndex,:) = spline(1:2400, raw_T1(sheetIndex,:), newXpoints);
@@ -164,6 +182,7 @@ parfor sheetIndex = 1:noLoadValues
     
 end
 
+
 % slicing immediate and steady-state values to reduce parfor communication overhead
     gradient_T1_imm = gradient_T1(:,1);
     gradient_T2_imm = gradient_T1(:,1);
@@ -175,6 +194,7 @@ end
     smoothed_B1_ss = smoothed_B1(:,24);
     smoothed_B2_ss = smoothed_B2(:,24);
 
+    
 % compute 
 parfor loadIndex = 1:noLoadValues
    T1(loadIndex) = gradient_T1_imm(loadIndex);
