@@ -56,6 +56,7 @@ newXpoints = linspace(1,2400,24);
 % pre-allocate memory for speed + efficiency
 raw_T1 = zeros(noLoadValues, noDataValues-headerspace);
 raw_T2 = zeros(noLoadValues, noDataValues-headerspace);
+temp_T2 = zeros(noDataValues);
 splineY_T1 = zeros(noLoadValues, (noDataValues-2)/100);
 splineY_T2 = zeros(noLoadValues, (noDataValues-2)/100);
 smoothed_T1 = zeros(noLoadValues, (noDataValues-2)/100);
@@ -86,6 +87,7 @@ Vmeas = zeros(noLoadValues, noDataValues-headerspace);
 Imeas = zeros(noLoadValues, noDataValues-headerspace);
 
 overflowImpending = zeros(noLoadValues, 1);
+temp_T2 = zeros(1, noDataValues-2);
 
 sd_B1 = zeros(1, noLoadValues);
 sd_B2 = zeros(1, noLoadValues);
@@ -129,12 +131,12 @@ parfor sheetIndex = 1:noLoadValues
     if sheetIndex == 7
         temp_T2 = raw_T2(sheetIndex,:);
         for valueIndex = 1:noDataValues-2
-            if (temp_T2(valueIndex) > 249.0 && overflowImpending(sheetIndex,:) == 0)
-                overflowImpending(sheetIndex,:) = 1;
+            if (temp_T2(1, valueIndex) > 249.0 && overflowImpending(sheetIndex,1) == 0)
+                overflowImpending(sheetIndex,1) = 1;
             end
-            if (temp_T2(valueIndex) < 5.0 && overflowImpending(sheetIndex,:) == 1)
-                temp_T2(valueIndex) = temp_T2(valueIndex) + 249.0;
-                overflowImpending(sheetIndex,:) = 0;
+            if (temp_T2(1, valueIndex) < 10.0 && overflowImpending(sheetIndex,1) == 1)
+                temp_T2(1, valueIndex) = temp_T2(1, valueIndex) + 249.0;
+                %overflowImpending(sheetIndex,1) = 0;
             end
         end
         raw_T2(sheetIndex,:) = temp_T2;
