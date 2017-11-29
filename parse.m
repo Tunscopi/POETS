@@ -127,7 +127,7 @@ parfor sheetIndex = 1:noLoadValues
     By2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('O',int2str(headerspace+1),':','O',int2str(noDataValues)));
     Bz2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('P',int2str(headerspace+1),':','P',int2str(noDataValues)));    
     
-    % Handle overflow from IR sensor (usually occurs on excursion point i.e L7)
+    % Handle overflow from IR sensor (usually occurs on excursion point i.e L7 on transistor #2)
     if sheetIndex == 7
         temp_T2 = raw_T2(sheetIndex,:);
         for valueIndex = 1:noDataValues-2
@@ -136,7 +136,6 @@ parfor sheetIndex = 1:noLoadValues
             end
             if (temp_T2(1, valueIndex) < 10.0 && overflowImpending(sheetIndex,1) == 1)
                 temp_T2(1, valueIndex) = temp_T2(1, valueIndex) + 249.0;
-                %overflowImpending(sheetIndex,1) = 0;
             end
         end
         raw_T2(sheetIndex,:) = temp_T2;
@@ -187,9 +186,9 @@ end
 
 % slicing immediate and steady-state values to reduce parfor communication overhead
     gradient_T1_imm = gradient_T1(:,1);
-    gradient_T2_imm = gradient_T1(:,1);
+    gradient_T2_imm = gradient_T2(:,1);
     gradient_T1_ss = gradient_T1(:,10);
-    gradient_T2_ss = gradient_T1(:,10);
+    gradient_T2_ss = gradient_T2(:,10);
     
     smoothed_B1_imm = smoothed_B1(:,1);
     smoothed_B2_imm = smoothed_B2(:,1);
