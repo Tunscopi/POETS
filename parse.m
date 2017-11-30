@@ -6,7 +6,7 @@
 function parse(filename)
 
 % 1. Setup
-close all;
+%close all;
 
 if (nargin == 0)
     fprintf('Using recently used file:\n');
@@ -37,6 +37,12 @@ assignin('base','headerspace',headerspace);
 
 
 % 2.1 experiment parameters
+% i. configurable
+steadystate_elapsed_time = 20; % in minutes
+observe_point = 5;
+
+no_samplePoints = 24;
+
 param_Vin = xlsread(filepath,1,'B3'); 
 isTrial = strfind(filepath, 'trial');
 if (param_Vin > 45)
@@ -51,7 +57,7 @@ param_Vmeas = xlsread(filepath,1,strcat('D',int2str(headerspace+1),':','D',int2s
 param_loadValues = xlsread(filepath,1,strcat('E',int2str(headerspace+1),':','E',int2str(headerspace+noLoadValues))); 
 param_Imeas = xlsread(filepath,1,strcat('G',int2str(headerspace+1),':','G',int2str(headerspace+noLoadValues))); 
 
-newXpoints = linspace(1,2400,24);
+newXpoints = linspace(1,2400,no_samplePoints);
 
 % pre-allocate memory for speed + efficiency
 raw_T1 = zeros(noLoadValues, noDataValues-headerspace);
@@ -187,27 +193,34 @@ end
 % slicing immediate and steady-state values to reduce parfor communication overhead
     gradient_T1_imm = gradient_T1(:,1);
     gradient_T2_imm = gradient_T2(:,1);
-    gradient_T1_ss = gradient_T1(:,10);
-    gradient_T2_ss = gradient_T2(:,10);
-    
+    gradient_T1_ss = gradient_T1(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
+    gradient_T2_ss = gradient_T2(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
+    gradient_T1_otherpoint = gradient_T1(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
+    gradient_T2_otherpoint = gradient_T2(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
+
     smoothed_B1_imm = smoothed_B1(:,1);
     smoothed_B2_imm = smoothed_B2(:,1);
-    smoothed_B1_ss = smoothed_B1(:,24);
-    smoothed_B2_ss = smoothed_B2(:,24);
+    smoothed_B1_ss = smoothed_B1(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
+    smoothed_B2_ss = smoothed_B2(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
+    smoothed_B1_otherpoint = smoothed_B1(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
+    smoothed_B2_otherpoint = smoothed_B2(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
 
     
 % compute 
 parfor loadIndex = 1:noLoadValues
-   T1(loadIndex) = gradient_T1_imm(loadIndex);
-   T2(loadIndex) = gradient_T2_imm(loadIndex);
+   T1imm(loadIndex) = gradient_T1_imm(loadIndex);
+   T2imm(loadIndex) = gradient_T2_imm(loadIndex);
    T1ss(loadIndex) = gradient_T1_ss(loadIndex);
    T2ss(loadIndex) = gradient_T2_ss(loadIndex);
+   T1op(loadIndex) = gradient_T1_otherpoint(loadIndex);
+   T2op(loadIndex) = gradient_T2_otherpoint(loadIndex);
    
-   B1(loadIndex) = smoothed_B1_imm(loadIndex);
-   B2(loadIndex) = smoothed_B2_imm(loadIndex);
+   B1imm(loadIndex) = smoothed_B1_imm(loadIndex);
+   B2imm(loadIndex) = smoothed_B2_imm(loadIndex);
    B1ss(loadIndex) = smoothed_B1_ss(loadIndex);
    B2ss(loadIndex) = smoothed_B2_ss(loadIndex);
-   
+   B1op(loadIndex) = smoothed_B1_otherpoint(loadIndex);
+   B2op(loadIndex) = smoothed_B2_otherpoint(loadIndex);
 end
 fprintf('parse time: %.1f(s)\n', toc);
 
