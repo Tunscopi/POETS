@@ -127,14 +127,14 @@ parfor sheetIndex = 1:noLoadValues
     By2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('O',int2str(headerspace+1),':','O',int2str(noDataValues)));
     Bz2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('P',int2str(headerspace+1),':','P',int2str(noDataValues)));    
     
-    % Handle overflow from IR sensor (usually occurs on excursion point i.e L7 on transistor #2)
+    % Handle overflow from IR sensor (usually occurs at excursion point i.e L7 on transistor #2)
     if sheetIndex == 7
         temp_T2 = raw_T2(sheetIndex,:);
         for valueIndex = 1:noDataValues-2
             if (temp_T2(1, valueIndex) > 249.0 && overflowImpending(sheetIndex,1) == 0)
                 overflowImpending(sheetIndex,1) = 1;
             end
-            if (temp_T2(1, valueIndex) < 10.0 && overflowImpending(sheetIndex,1) == 1)
+            if (temp_T2(1, valueIndex) < 100.0 && overflowImpending(sheetIndex,1) == 1)
                 temp_T2(1, valueIndex) = temp_T2(1, valueIndex) + 249.0;
             end
         end
