@@ -1,2 +1,2 @@
 # POETS
-POETS-HU Masters work
+Automation code for POETS-HU Masters work
