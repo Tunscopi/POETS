@@ -43,6 +43,9 @@ observe_point = 5;
 
 no_samplePoints = 24;
 
+sensitivity = 280; % in mV/mT from datasheet 
+% http://www.gmw.com/magnetic_sensors/ametes/documents/Ametes_MFS-3A_Spec_18_Apr_2011.pdf
+
 param_Vin = xlsread(filepath,1,'B3'); 
 isTrial = strfind(filepath, 'trial');
 if (param_Vin > 45)
@@ -70,12 +73,12 @@ smoothed_T2 = zeros(noLoadValues, (noDataValues-2)/100);
 gradient_T1 = zeros(noLoadValues, (noDataValues-2)/100);
 gradient_T2 = zeros(noLoadValues, (noDataValues-2)/100);
 
-Bx1 = zeros(noLoadValues, noDataValues-headerspace);
-By1 = zeros(noLoadValues, noDataValues-headerspace);
-Bz1 = zeros(noLoadValues, noDataValues-headerspace);
-Bx2 = zeros(noLoadValues, noDataValues-headerspace);
-By2 = zeros(noLoadValues, noDataValues-headerspace);
-Bz2 = zeros(noLoadValues, noDataValues-headerspace);
+Vx1 = zeros(noLoadValues, noDataValues-headerspace);
+Vy1 = zeros(noLoadValues, noDataValues-headerspace);
+Vz1 = zeros(noLoadValues, noDataValues-headerspace);
+Vx2 = zeros(noLoadValues, noDataValues-headerspace);
+Vy2 = zeros(noLoadValues, noDataValues-headerspace);
+Vz2 = zeros(noLoadValues, noDataValues-headerspace);
 raw_B1 = zeros(noLoadValues, noDataValues-headerspace);
 raw_B2 = zeros(noLoadValues, noDataValues-headerspace);
 splineY_B1 = zeros(noLoadValues, (noDataValues-2)/100);
@@ -123,15 +126,15 @@ parfor sheetIndex = 1:noLoadValues
     % Temperature and magnetic field
     % transistor1
     raw_T1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('H',int2str(headerspace+1),':','H',int2str(noDataValues)));     
-    Bx1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('K',int2str(headerspace+1),':','K',int2str(noDataValues)));
-    By1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('L',int2str(headerspace+1),':','L',int2str(noDataValues)));
-    Bz1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('M',int2str(headerspace+1),':','M',int2str(noDataValues)));
+    Vx1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('K',int2str(headerspace+1),':','K',int2str(noDataValues)));
+    Vy1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('L',int2str(headerspace+1),':','L',int2str(noDataValues)));
+    Vz1(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('M',int2str(headerspace+1),':','M',int2str(noDataValues)));
 
     % transistor2
     raw_T2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('I',int2str(headerspace+1),':','I',int2str(noDataValues)));
-    Bx2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('N',int2str(headerspace+1),':','N',int2str(noDataValues)));
-    By2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('O',int2str(headerspace+1),':','O',int2str(noDataValues)));
-    Bz2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('P',int2str(headerspace+1),':','P',int2str(noDataValues)));    
+    Vx2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('N',int2str(headerspace+1),':','N',int2str(noDataValues)));
+    Vy2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('O',int2str(headerspace+1),':','O',int2str(noDataValues)));
+    Vz2(sheetIndex,:) = xlsread(filepath,sheetIndex+1,strcat('P',int2str(headerspace+1),':','P',int2str(noDataValues)));    
     
     % Handle overflow from IR sensor (usually occurs at excursion point i.e L7 on transistor #2)
     if sheetIndex == 7
@@ -157,8 +160,8 @@ parfor sheetIndex = 1:noLoadValues
     
     
     % Total magnetic field density (Ametes MFS-3A sensor)
-    raw_B1(sheetIndex,:) = Bx1(sheetIndex,:).^2 + By1(sheetIndex,:).^2 + Bz1(sheetIndex,:).^2;
-    raw_B2(sheetIndex,:) = Bx2(sheetIndex,:).^2 + By2(sheetIndex,:).^2 + Bz2(sheetIndex,:).^2;
+    raw_B1(sheetIndex,:) = sqrt(Vx1(sheetIndex,:).^2 + Vy1(sheetIndex,:).^2 + Vz1(sheetIndex,:).^2)/sensitivity;
+    raw_B2(sheetIndex,:) = sqrt(Vx2(sheetIndex,:).^2 + Vy2(sheetIndex,:).^2 + Vz2(sheetIndex,:).^2)/sensitivity;
     
     % smoothed values
     splineY_T1(sheetIndex,:) = spline(1:2400, raw_T1(sheetIndex,:), newXpoints);
@@ -191,12 +194,12 @@ end
 
 
 % slicing immediate and steady-state values to reduce parfor communication overhead
-    gradient_T1_imm = gradient_T1(:,1);
-    gradient_T2_imm = gradient_T2(:,1);
-    gradient_T1_ss = gradient_T1(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
-    gradient_T2_ss = gradient_T2(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
-    gradient_T1_otherpoint = gradient_T1(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
-    gradient_T2_otherpoint = gradient_T2(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
+    gradient_T1_imm = smoothed_T1(:,1);
+    gradient_T2_imm = smoothed_T2(:,1);
+    gradient_T1_ss = smoothed_T1(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
+    gradient_T2_ss = smoothed_T2(:,floor(steadystate_elapsed_time*120/((noDataValues-2)/no_samplePoints)));
+    gradient_T1_otherpoint = smoothed_T1(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
+    gradient_T2_otherpoint = smoothed_T2(:,floor(observe_point*120/((noDataValues-2)/no_samplePoints)));
 
     smoothed_B1_imm = smoothed_B1(:,1);
     smoothed_B2_imm = smoothed_B2(:,1);
@@ -229,6 +232,12 @@ fprintf('parse time: %.1f(s)\n', toc);
     
 %% perform various arithmetic & plot operations on parsed data available in workspace 
 disp('Ready...');
-keyboard
+% We can either edit with i) parpool still live and program live or 
+% instead, we can ii) save workspace and load it with all the saved variables
+% i) 
+% keyboard
+% ii) 
+workspace_file = strcat('Data/',filename);
+save(workspace_file)
 
 end
